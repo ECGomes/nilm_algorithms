@@ -19,39 +19,39 @@ class WindowGRU(BaseNetwork):
         self.dropout_rate = dropout_rate
 
         # Normalization variable initialization
-        self.max_val = self.get_max()
+        self.max_val_x, self.max_val_y = self.get_max()
 
         self.normalized_x = None
         self.normalized_y = None
 
     def get_max(self):
         """
-        Get maximum value between X and Y
+        Get maximum value of X and Y
         """
         max_x = self.x.max()
         max_y = self.y.max()
 
-        return max(max_x, max_y)
+        return max_x, max_y
 
-    def normalize(self, array):
+    def normalize(self, array, max_val):
         """
         Returns array normalized (divided) by max value
         """
-        return array/self.max_val
+        return array/max_val
 
-    def denormalize(self, array):
+    def denormalize(self, array, max_val):
         """
         Returns array multiplied by max value
         """
-        return array * self.max_val
+        return array * max_val
 
     def preprocessing(self):
         """
         Normalizes by maximum value, then builds the sliding windows
         """
 
-        self.normalized_x = self.normalize(self.x)
-        self.normalized_y = self.normalize(self.y)
+        self.normalized_x = self.normalize(self.x, self.max_val_x)
+        self.normalized_y = self.normalize(self.y, self.max_val_y)
 
         preprocessed_x = split_sequence(self.normalized_x, self.window_size)
         preprocessed_x = preprocessed_x.reshape(preprocessed_x.shape[0],
@@ -61,13 +61,6 @@ class WindowGRU(BaseNetwork):
         preprocessed_y = tf.convert_to_tensor(self.normalized_y[self.window_size:], dtype=tf.float32)
 
         return preprocessed_x, preprocessed_y
-
-    def denormalize(self, array):
-        """
-        De-normalizes the sequence
-        """
-
-        return array * self.max_val
 
     def network_architecture(self):
 
