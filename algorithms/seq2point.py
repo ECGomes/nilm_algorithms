@@ -15,6 +15,9 @@ class Seq2Point(BaseNetwork):
                          use_callbacks=use_callbacks, stop_patience=stop_patience,
                          batch_size=batch_size, n_epochs=n_epochs, validation_split=validation_split)
 
+        # Standardization
+        self.standardize = standardize
+
         # Set network specifics
         self.dropout_rate = dropout_rate
 
