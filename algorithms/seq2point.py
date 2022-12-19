@@ -53,7 +53,7 @@ class Seq2Point(BaseNetwork):
             self.standardized_x, self.x_mean, self.x_std = self.standardize_values(self.x)
             self.standardized_y, self.y_mean, self.y_std = self.standardize_values(self.y)
 
-            preprocessed_x = split_sequence(self.standardized_x, self.window_size)
+            preprocessed_x, preprocessed_y = split_sequence(self.standardized_x, self.window_size)
             preprocessed_x = preprocessed_x.reshape(preprocessed_x.shape[0],
                                                     preprocessed_x.shape[1],
                                                     1)
