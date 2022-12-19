@@ -25,6 +25,10 @@ class Seq2Point(BaseNetwork):
         self.standardized_x, self.x_mean, self.x_std = None, None, None
         self.standardized_y, self.y_mean, self.y_std = None, None, None
 
+        # Preprocessed values
+        # Get the data preprocessed
+        self.processed_x, self.processed_y = None, None
+
     def standardize_values(self, array):
         """
         Return the standardized inputs, as well as the mean and std
@@ -72,6 +76,16 @@ class Seq2Point(BaseNetwork):
 
             return preprocessed_x, preprocessed_y
 
+    # Split the sequence into windows of size window_size
+    def do_windowing(self):
+        self.processed_x, self.processed_y = create_windows(self.x, self.window_size)
+        self.processed_x = self.processed_x.reshape(self.processed_x.shape[0],
+                                                    self.processed_x.shape[1],
+                                                    1)
+        # Convert to tensors
+        self.processed_x = tf.convert_to_tensor(self.processed_x, dtype=tf.float32)
+        self.processed_y = tf.convert_to_tensor(self.processed_y, dtype=tf.float32)
+
     def network_architecture(self):
 
         inputs = tf.keras.layers.Input(shape=(self.window_size, 1))
@@ -103,23 +117,23 @@ class Seq2Point(BaseNetwork):
 
         return model, callbacks
 
-    def fit(self):
+    def fit(self, do_preprocessing=True):
 
-        # Get the data preprocessed
-        processed_x, processed_y = self.preprocessing()
+        if do_preprocessing:
+            self.do_windowing()
 
         # Get the network object
         self.model, callbacks = self.network_architecture()
 
         if self.use_callbacks:
-            self.model.fit(processed_x, processed_y,
+            self.model.fit(self.processed_x, self.processed_y,
                            epochs=self.n_epochs,
                            batch_size=self.batch_size,
                            validation_split=self.validation_split,
                            callbacks=callbacks,
                            verbose=1)
         else:
-            self.model.fit(processed_x, processed_y,
+            self.model.fit(self.processed_x, self.processed_y,
                            epochs=self.n_epochs,
                            batch_size=self.batch_size,
                            validation_split=self.validation_split,

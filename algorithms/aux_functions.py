@@ -14,3 +14,10 @@ def split_sequence(sequence, n_steps, n_intervals=1):
         seq_x = sequence[i:end_ix]
         X.append(seq_x)
     return np.array(X)
+
+
+def create_windows(sequence, n_steps):
+    X = [[sequence[i + j] for j in range(n_steps)] for i in range(len(sequence) - n_steps)]
+    y = [sequence[i + n_steps] for i in range(len(sequence) - n_steps)]
+
+    return X, y
