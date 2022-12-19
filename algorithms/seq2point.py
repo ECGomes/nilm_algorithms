@@ -9,7 +9,7 @@ class Seq2Point(BaseNetwork):
 
     def __init__(self, x, y, window_size,
                  model_name, model_dir, dropout_rate=0.5, use_callbacks=False, stop_patience=50,
-                 batch_size=128, n_epochs=100, validation_split=0.15):
+                 batch_size=128, n_epochs=100, validation_split=0.15, standardize=True):
 
         super().__init__(x, y, window_size, model_name, model_dir,
                          use_callbacks=use_callbacks, stop_patience=stop_patience,
@@ -45,17 +45,29 @@ class Seq2Point(BaseNetwork):
         Normalizes by maximum value, then builds the sliding windows
         """
 
-        self.standardized_x, self.x_mean, self.x_std = self.standardize_values(self.x)
-        self.standardized_y, self.y_mean, self.y_std = self.standardize_values(self.y)
+        # Check if data will be standardized
+        if self.standardize:
+            self.standardized_x, self.x_mean, self.x_std = self.standardize_values(self.x)
+            self.standardized_y, self.y_mean, self.y_std = self.standardize_values(self.y)
 
-        preprocessed_x = split_sequence(self.standardized_x, self.window_size)
-        preprocessed_x = preprocessed_x.reshape(preprocessed_x.shape[0],
-                                                preprocessed_x.shape[1],
-                                                1)
-        preprocessed_x = tf.convert_to_tensor(preprocessed_x, dtype=tf.float32)
-        preprocessed_y = tf.convert_to_tensor(self.standardized_y[self.window_size:], dtype=tf.float32)
+            preprocessed_x = split_sequence(self.standardized_x, self.window_size)
+            preprocessed_x = preprocessed_x.reshape(preprocessed_x.shape[0],
+                                                    preprocessed_x.shape[1],
+                                                    1)
+            preprocessed_x = tf.convert_to_tensor(preprocessed_x, dtype=tf.float32)
+            preprocessed_y = tf.convert_to_tensor(self.standardized_y[self.window_size:], dtype=tf.float32)
 
-        return preprocessed_x, preprocessed_y
+            return preprocessed_x, preprocessed_y
+
+        else:
+            preprocessed_x = split_sequence(self.x, self.window_size)
+            preprocessed_x = preprocessed_x.reshape(preprocessed_x.shape[0],
+                                                    preprocessed_x.shape[1],
+                                                    1)
+            preprocessed_x = tf.convert_to_tensor(preprocessed_x, dtype=tf.float32)
+            preprocessed_y = tf.convert_to_tensor(self.y[self.window_size:], dtype=tf.float32)
+
+            return preprocessed_x, preprocessed_y
 
     def network_architecture(self):
 
@@ -66,15 +78,15 @@ class Seq2Point(BaseNetwork):
         net = tf.keras.layers.Conv1D(filters=40, kernel_size=6, activation='relu', strides=1)(net)
         net = tf.keras.layers.Conv1D(filters=50, kernel_size=5, activation='relu', strides=1)(net)
 
-        net = tf.keras.layers.Dropout(0.2)(net)
+        net = tf.keras.layers.Dropout(self.dropout_rate)(net)
 
         net = tf.keras.layers.Conv1D(filters=50, kernel_size=5, activation='relu', strides=1)(net)
 
-        net = tf.keras.layers.Dropout(0.2)(net)
+        net = tf.keras.layers.Dropout(self.dropout_rate)(net)
 
         net = tf.keras.layers.Flatten()(net)
         net = tf.keras.layers.Dense(units=1024, activation='relu')(net)
-        net = tf.keras.layers.Dropout(0.2)(net)
+        net = tf.keras.layers.Dropout(self.dropout_rate)(net)
 
         # Changed from the original linear activation (so we don't run into negative consumption)
         output = tf.keras.layers.Dense(units=1, activation='relu')(net)
@@ -109,3 +121,18 @@ class Seq2Point(BaseNetwork):
                            batch_size=self.batch_size,
                            validation_split=self.validation_split,
                            verbose=1)
+
+    def predict(self, x, preprocess=True):
+
+        if preprocess:
+            x = split_sequence(x, self.window_size)
+            x = x.reshape(x.shape[0], x.shape[1], 1)
+            x = tf.convert_to_tensor(x, dtype=tf.float32)
+
+        y_pred = self.model.predict(x)
+
+        # Check if data was standardized
+        if self.standardize:
+            y_pred = self.destandardize(y_pred, self.y_mean, self.y_std)
+
+        return y_pred
